@@ -1,6 +1,7 @@
 from flask import Flask, jsonify
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from blueprints.users import users_bp
+from blueprints.groups import groups_bp
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -43,6 +44,7 @@ def test_endpoint():
 
 # Register blueprints
 app.register_blueprint(users_bp)
+app.register_blueprint(groups_bp)
 
 # Run the Flask application
 if __name__ == '__main__':

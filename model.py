@@ -14,8 +14,8 @@ class Base(DeclarativeBase):
 group_membership = Table(
     "group_membership",
     Base.metadata,
-    Column("group_id", ForeignKey("group.id"), primary_key=True),
-    Column("user_id", ForeignKey("user.id"), primary_key=True),
+    Column("group_id", ForeignKey("group.id", ondelete="CASCADE"), primary_key=True),
+    Column("user_id", ForeignKey("user.id", ondelete="CASCADE"), primary_key=True),
 )
 
 class User(Base):
@@ -29,7 +29,9 @@ class User(Base):
 
     groups: Mapped[List["Group"]] = relationship(
         secondary=group_membership,
-        back_populates="members"
+        back_populates="members",
+        cascade="all",
+        passive_deletes=True
     )
 
     def to_dict(self):
@@ -91,12 +93,13 @@ class Group(Base):
     __tablename__ = "group"
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(30), nullable=False)
-    owner_id: Mapped[int] = mapped_column(ForeignKey("user.id"), nullable=False)
+    owner_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
     
-    owner: Mapped["User"] = relationship()
+    owner: Mapped["User"] = relationship(passive_deletes=True)
     members: Mapped[List["User"]] = relationship(
         secondary=group_membership,
-        back_populates="groups"
+        back_populates="groups",
+        passive_deletes=True
     )
     expenses: Mapped[List["Expense"]] = relationship(
         back_populates="group"

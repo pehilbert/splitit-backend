@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request, current_app
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
 from model import User
 
 users_bp = Blueprint('users', __name__, url_prefix='/users')
@@ -70,12 +70,17 @@ def create_user():
     return jsonify({"message": "User created successfully", "user": new_user_dict}), 201
 
 @users_bp.route('/', methods=['PUT'])
+@jwt_required()
 def update_user():
     data = request.get_json()
     user_id = request.args.get('user_id', type=int)
+    requesting_user_id = int(get_jwt_identity())
 
     if user_id is None:
         return jsonify({"error": "User ID is required"}), 400
+    
+    if requesting_user_id != user_id:
+        return jsonify({"error": "Unauthorized to update this user"}), 403
     
     try:
         session = current_app.Session()
@@ -100,11 +105,16 @@ def update_user():
     return jsonify({"message": "User updated successfully", "user": user_dict}), 200
 
 @users_bp.route('/', methods=['DELETE'])
+@jwt_required()
 def delete_user():
     user_id = request.args.get('user_id', type=int)
+    requesting_user_id = int(get_jwt_identity())
 
     if user_id is None:
         return jsonify({"error": "User ID is required"}), 400
+    
+    if requesting_user_id != user_id:
+        return jsonify({"error": "Unauthorized to delete this user"}), 403
     
     try:
         session = current_app.Session()
@@ -136,7 +146,7 @@ def login():
     user = session.query(User).filter_by(username=data['username']).first()
 
     if user and check_password_hash(user.password, data['password']):
-        access_token = create_access_token(identity=user.id)
+        access_token = create_access_token(identity=str(user.id))
         session.close()
         return jsonify({"access_token": access_token}), 200
     else:
