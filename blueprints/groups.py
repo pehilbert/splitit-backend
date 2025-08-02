@@ -13,11 +13,11 @@ def get_groups():
         try:
             group = session.query(Group).filter_by(id=group_id).first()
             if group is None:
-                return jsonify({"error": "Group not found"}), 404
+                return jsonify({"message": "Group not found"}), 404
             group_dict = group.to_dict()
         except Exception as e:
             current_app.logger.error(f"Error fetching group: {e}")
-            return jsonify({"error": "Failed to fetch group"}), 500
+            return jsonify({"message": "Failed to fetch group", "error": f"{e}"}), 500
         finally:
             session.close()
         return jsonify({"groups": [group_dict]})
@@ -27,7 +27,7 @@ def get_groups():
             groups_list = [group.to_dict() for group in groups]
         except Exception as e:
             current_app.logger.error(f"Error fetching groups: {e}")
-            return jsonify({"error": "Failed to fetch groups"}), 500
+            return jsonify({"message": "Failed to fetch groups", "error": f"{e}"}), 500
         finally:
             session.close()
         return jsonify({"groups": groups_list})
@@ -37,14 +37,14 @@ def get_groups():
 def create_group():
     data = request.get_json()
     if not data or not all(key in data for key in ('name',)):
-        return jsonify({"error": "Missing required fields"}), 400
+        return jsonify({"message": "Missing required fields"}), 400
 
     owner_id = int(get_jwt_identity())
     session = current_app.Session()
     try:
         owner = session.query(User).filter_by(id=owner_id).first()
         if not owner:
-            return jsonify({"error": "Owner not found"}), 404
+            return jsonify({"message": "Owner not found"}), 404
 
         new_group = Group(
             name=data['name'],
@@ -58,7 +58,7 @@ def create_group():
         group_dict = new_group.to_dict()
     except Exception as e:
         current_app.logger.error(f"Error creating group: {e}")
-        return jsonify({"error": "Failed to create group"}), 500
+        return jsonify({"message": "Failed to create group", "error": f"{e}"}), 500
     finally:
         session.close()
     return jsonify({"message": "Group created successfully", "group": group_dict}), 201
@@ -71,15 +71,15 @@ def update_group():
     requesting_user_id = int(get_jwt_identity())
 
     if group_id is None:
-        return jsonify({"error": "Group ID is required"}), 400
+        return jsonify({"message": "Group ID is required"}), 400
 
     session = current_app.Session()
     try:
         group = session.query(Group).filter_by(id=group_id).first()
         if group is None:
-            return jsonify({"error": "Group not found"}), 404
+            return jsonify({"message": "Group not found"}), 404
         if group.owner_id != requesting_user_id:
-            return jsonify({"error": "Unauthorized to update this group"}), 403
+            return jsonify({"message": "Unauthorized to update this group"}), 403
 
         for key, value in data.items():
             if hasattr(group, key) and key not in ('id', 'owner_id'):
@@ -88,7 +88,7 @@ def update_group():
         group_dict = group.to_dict()
     except Exception as e:
         current_app.logger.error(f"Error updating group: {e}")
-        return jsonify({"error": "Failed to update group"}), 500
+        return jsonify({"message": "Failed to update group", "error": f"{e}"}), 500
     finally:
         session.close()
     return jsonify({"message": "Group updated successfully", "group": group_dict}), 200
@@ -100,21 +100,21 @@ def delete_group():
     requesting_user_id = int(get_jwt_identity())
 
     if group_id is None:
-        return jsonify({"error": "Group ID is required"}), 400
+        return jsonify({"message": "Group ID is required"}), 400
 
     session = current_app.Session()
     try:
         group = session.query(Group).filter_by(id=group_id).first()
         if group is None:
-            return jsonify({"error": "Group not found"}), 404
+            return jsonify({"message": "Group not found"}), 404
         if group.owner_id != requesting_user_id:
-            return jsonify({"error": "Unauthorized to delete this group"}), 403
+            return jsonify({"message": "Unauthorized to delete this group"}), 403
 
         session.delete(group)
         session.commit()
     except Exception as e:
         current_app.logger.error(f"Error deleting group: {e}")
-        return jsonify({"error": "Failed to delete group"}), 500
+        return jsonify({"message": "Failed to delete group", "error": f"{e}"}), 500
     finally:
         session.close()
     return jsonify({"message": "Group deleted successfully"}), 200
@@ -148,7 +148,7 @@ def add_member():
         session.commit()
     except Exception as e:
         current_app.logger.error(f"Error adding member to group: {e}")
-        return jsonify({"error": "Failed to add member to group"}), 500
+        return jsonify({"message": "Failed to add member to group", "error": f"{e}"}), 500
     finally:
         session.close()
 
@@ -187,7 +187,7 @@ def remove_member():
         session.commit()
     except Exception as e:
         current_app.logger.error(f"Error removing member from group: {e}")
-        return jsonify({"error": "Failed to remove member from group"}), 500
+        return jsonify({"message": "Failed to remove member from group", "error": f"{e}"}), 500
     finally:
         session.close()
 

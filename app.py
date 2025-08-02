@@ -1,17 +1,35 @@
-from flask import Flask, jsonify
+from flask import Flask, json, jsonify, request
+import logging
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from blueprints.blueprint_util import setup_blueprint
 from blueprints.users import users_bp
 from blueprints.groups import groups_bp
+from blueprints.expenses import expenses_bp
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from model import Base
+from model import Base, Expense
 import os
+
+from util.sensitive_info import SensitiveSanitizer
+
+# Initialize logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] [%(levelname)s] [%(module)s] %(message)s',
+    handlers=[
+        logging.StreamHandler()
+    ]
+)
 
 app = Flask(__name__)
 
+# Get blueprints to set up
+BLUEPRINTS = [users_bp, groups_bp, expenses_bp]
+
 # Get the environment variables
 app.logger.info("Loading environment variables...")
+
 load_dotenv()
 
 DATABASE_URL = os.getenv('DATABASE_URL')
@@ -21,6 +39,11 @@ if not DATABASE_URL:
     raise ValueError("DATABASE_URL must be set in the environment variables.")
 
 app.logger.info("Successfully loaded environment variables.")
+
+# Initialize sensitive sanitizer
+app.logger.info("Initializing SensitiveSanitizer...")
+app.sanitizer = SensitiveSanitizer(app.logger, sensitive_fields=['password', 'access_token'])
+app.logger.info("SensitiveSanitizer initialized successfully.")
 
 # Initialize the database
 app.logger.info("Initializing database...")
@@ -43,9 +66,14 @@ def test_endpoint():
     return jsonify({"status": "Healthy"})
 
 # Register blueprints
-app.register_blueprint(users_bp)
-app.register_blueprint(groups_bp)
+with app.app_context():
+    app.logger.info("Registering blueprints...")
+
+    for blueprint in BLUEPRINTS:
+        setup_blueprint(app, blueprint)
+
+    app.logger.info("Blueprints registered successfully.")
 
 # Run the Flask application
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)

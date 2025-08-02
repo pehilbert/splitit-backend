@@ -16,13 +16,13 @@ def get_users():
 
             if user is None:
                 session.close()
-                return jsonify({"error": "User not found"}), 404
+                return jsonify({"message": "User not found"}), 404
             
             user_dict = user.to_dict()
         except Exception as e:
             current_app.logger.error(f"Error fetching user: {e}")
             session.close()
-            return jsonify({"error": "Failed to fetch user"}), 500
+            return jsonify({"message": "Failed to fetch user", "error": f"{e}"}), 500
         finally:
             session.close()
 
@@ -33,7 +33,7 @@ def get_users():
             users_list = [user.to_dict() for user in users]
         except Exception as e:
             current_app.logger.error(f"Error fetching users: {e}")
-            return jsonify({"error": "Failed to fetch users"}), 500
+            return jsonify({"message": "Failed to fetch users", "error": f"{e}"}), 500
         finally:
             session.close()
 
@@ -43,8 +43,8 @@ def get_users():
 def create_user():
     data = request.get_json()
 
-    if not data or not all(key in data for key in ('username', 'password', 'firstName', 'lastName')):
-        return jsonify({"error": "Missing required fields"}), 400
+    if not data or not all(key in data for key in ('username', 'password', 'first_name', 'last_name')):
+        return jsonify({"message": "Missing required fields"}), 400
     
     hashed_password = generate_password_hash(data['password'])
     data['password'] = hashed_password
@@ -52,8 +52,8 @@ def create_user():
     new_user = User(
         username=data['username'],
         password=data['password'],
-        first_name=data['firstName'],
-        last_name=data['lastName']
+        first_name=data['first_name'],
+        last_name=data['last_name']
     )
 
     try:
@@ -63,7 +63,7 @@ def create_user():
         new_user_dict = new_user.to_dict()
     except Exception as e:
         current_app.logger.error(f"Error creating user: {e}")
-        return jsonify({"error": "Failed to create user"}), 500
+        return jsonify({"message": "Failed to create user", "error": f"{e}"}), 500
     finally:
         session.close()
 
@@ -77,10 +77,10 @@ def update_user():
     requesting_user_id = int(get_jwt_identity())
 
     if user_id is None:
-        return jsonify({"error": "User ID is required"}), 400
+        return jsonify({"message": "User ID is required"}), 400
     
     if requesting_user_id != user_id:
-        return jsonify({"error": "Unauthorized to update this user"}), 403
+        return jsonify({"message": "Unauthorized to update this user"}), 403
     
     try:
         session = current_app.Session()
@@ -88,7 +88,7 @@ def update_user():
 
         if user is None:
             session.close()
-            return jsonify({"error": "User not found"}), 404
+            return jsonify({"message": "User not found"}), 404
         
         for key, value in data.items():
             if hasattr(user, key) and key != 'id':
@@ -97,8 +97,8 @@ def update_user():
         user_dict = user.to_dict()
         session.commit()
     except Exception as e:
-        current_app.logger.error(f"Error initializing session: {e}")
-        return jsonify({"error": "Failed to initialize database session"}), 500
+        current_app.logger.error(f"Error updating user: {e}")
+        return jsonify({"message": "Failed to update user", "error": f"{e}"}), 500
     finally:
         session.close()
     
@@ -111,10 +111,10 @@ def delete_user():
     requesting_user_id = int(get_jwt_identity())
 
     if user_id is None:
-        return jsonify({"error": "User ID is required"}), 400
+        return jsonify({"message": "User ID is required"}), 400
     
     if requesting_user_id != user_id:
-        return jsonify({"error": "Unauthorized to delete this user"}), 403
+        return jsonify({"message": "Unauthorized to delete this user"}), 403
     
     try:
         session = current_app.Session()
@@ -122,13 +122,13 @@ def delete_user():
 
         if user is None:
             session.close()
-            return jsonify({"error": "User not found"}), 404
+            return jsonify({"message": "User not found"}), 404
         
         session.delete(user)
         session.commit()
     except Exception as e:
         current_app.logger.error(f"Error deleting user: {e}")
-        return jsonify({"error": "Failed to delete user"}), 500
+        return jsonify({"message": "Failed to delete user", "error": f"{e}"}), 500
     finally:
         session.close()
     
@@ -140,7 +140,7 @@ def login():
     data = request.get_json()
 
     if not data or not all(key in data for key in ('username', 'password')):
-        return jsonify({"error": "Missing required fields"}), 400
+        return jsonify({"message": "Missing required fields"}), 400
     
     session = current_app.Session()
     user = session.query(User).filter_by(username=data['username']).first()
@@ -151,4 +151,4 @@ def login():
         return jsonify({"access_token": access_token}), 200
     else:
         session.close()
-        return jsonify({"error": "Invalid username or password"}), 401
+        return jsonify({"message": "Invalid username or password"}), 401
