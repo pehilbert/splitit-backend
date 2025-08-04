@@ -8,6 +8,8 @@ users_bp = Blueprint('users', __name__, url_prefix='/users')
 @users_bp.route('/', methods=['GET'])
 def get_users():
     user_id = request.args.get('user_id', type=int)
+    username = request.args.get('username', type=str)
+    limit = request.args.get('limit', default=20, type=int)
     session = current_app.Session()
 
     if user_id is not None:
@@ -27,6 +29,17 @@ def get_users():
             session.close()
 
         return jsonify({"users": [user_dict]})
+    elif username is not None:
+        try:
+            users = session.query(User).filter(User.username.ilike(f"{username}%")).all()
+            users_list = [user.to_dict() for user in users]
+        except Exception as e:
+            current_app.logger.error(f"Error searching users by username: {e}")
+            return jsonify({"message": "Failed to search users", "error": f"{e}"}), 500
+        finally:
+            session.close()
+
+        return jsonify({"users": users_list[:limit]})
     else:
         try:
             users = session.query(User).all()
@@ -37,7 +50,7 @@ def get_users():
         finally:
             session.close()
 
-        return jsonify({"users": users_list})
+        return jsonify({"users": users_list[:limit]})
     
 @users_bp.route('/', methods=['POST'])
 def create_user():
@@ -90,8 +103,12 @@ def update_user():
             session.close()
             return jsonify({"message": "User not found"}), 404
         
+        # Hash the password if it is provided
+        if 'password' in data:
+            data['password'] = generate_password_hash(data['password'])
+
         for key, value in data.items():
-            if hasattr(user, key) and key != 'id':
+            if hasattr(user, key) and key != 'user_id':
                 setattr(user, key, value)
 
         user_dict = user.to_dict()
@@ -144,11 +161,12 @@ def login():
     
     session = current_app.Session()
     user = session.query(User).filter_by(username=data['username']).first()
+    user_dict = user.to_dict() if user else None
 
     if user and check_password_hash(user.password, data['password']):
         access_token = create_access_token(identity=str(user.id))
         session.close()
-        return jsonify({"access_token": access_token}), 200
+        return jsonify({"access_token": access_token, "user": user_dict}), 200
     else:
         session.close()
         return jsonify({"message": "Invalid username or password"}), 401

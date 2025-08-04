@@ -149,7 +149,7 @@ def update_expense():
         split_updates = data.get('splits', [])
 
         for new_split in split_updates:
-            if 'user_id' not in new_split or 'amount_paid' not in new_split or 'amount_owed' not in new_split:
+            if 'user_id' not in new_split:
                 session.rollback()
                 session.close()
                 return jsonify({"message": "Invalid split data"}), 400
@@ -159,8 +159,10 @@ def update_expense():
             ).first()
 
             if existing_split:
-                existing_split.amount_paid = new_split['amount_paid']
-                existing_split.amount_owed = new_split['amount_owed']
+                if 'amount_paid' in new_split:
+                    existing_split.amount_paid = new_split['amount_paid']
+                if 'amount_owed' in new_split:
+                    existing_split.amount_owed = new_split['amount_owed']
 
         expense_dict = expense.to_dict()
         session.commit()

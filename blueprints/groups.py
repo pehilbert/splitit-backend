@@ -1,12 +1,13 @@
 from flask import Blueprint, jsonify, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from model import Group, User
+from model import Group, User, group_membership
 
 groups_bp = Blueprint('groups', __name__, url_prefix='/groups')
 
 @groups_bp.route('/', methods=['GET'])
 def get_groups():
     group_id = request.args.get('group_id', type=int)
+    user_id = request.args.get('user_id', type=int)
     session = current_app.Session()
 
     if group_id is not None:
@@ -21,6 +22,18 @@ def get_groups():
         finally:
             session.close()
         return jsonify({"groups": [group_dict]})
+    elif user_id is not None:
+        try:
+            user = session.query(User).filter_by(id=user_id).first()
+            if user is None:
+                return jsonify({"message": "User not found"}), 404
+            groups_list = [group.to_dict() for group in user.groups]
+        except Exception as e:
+            current_app.logger.error(f"Error fetching groups for user: {e}")
+            return jsonify({"message": "Failed to fetch groups", "error": f"{e}"}), 500
+        finally:
+            session.close()
+        return jsonify({"groups": groups_list})
     else:
         try:
             groups = session.query(Group).all()
@@ -82,7 +95,7 @@ def update_group():
             return jsonify({"message": "Unauthorized to update this group"}), 403
 
         for key, value in data.items():
-            if hasattr(group, key) and key not in ('id', 'owner_id'):
+            if hasattr(group, key) and key not in ('id', 'owner_id', 'expenses', 'members'):
                 setattr(group, key, value)
         session.commit()
         group_dict = group.to_dict()

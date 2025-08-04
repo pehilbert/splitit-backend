@@ -1,4 +1,5 @@
 from flask import Flask, json, jsonify, request
+from flask_cors import CORS
 import logging
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from blueprints.blueprint_util import setup_blueprint
@@ -39,6 +40,10 @@ if not DATABASE_URL:
     raise ValueError("DATABASE_URL must be set in the environment variables.")
 
 app.logger.info("Successfully loaded environment variables.")
+
+# Set up CORS
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+app.logger.info("CORS configured successfully.")
 
 # Initialize sensitive sanitizer
 app.logger.info("Initializing SensitiveSanitizer...")
